@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+interface WeatherForecast {
+  date: string
+  temperatureC: number
+  summary: string
+}
+
 const message = ref<string>('Loading...')
-const weatherData = ref<any[]>([])
+const weatherData = ref<WeatherForecast[]>([])
 
 const fetchWeatherForecast = async () => {
   try {
