@@ -1,0 +1,12 @@
+/workspace/backend/src/Procurement.Orchestration.Domain/bin/Release/net8.0/Procurement.Orchestration.Domain.deps.json
+/workspace/backend/src/Procurement.Orchestration.Domain/bin/Release/net8.0/Procurement.Orchestration.Domain.dll
+/workspace/backend/src/Procurement.Orchestration.Domain/bin/Release/net8.0/Procurement.Orchestration.Domain.pdb
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.AssemblyInfoInputs.cache
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.AssemblyInfo.cs
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.csproj.CoreCompileInputs.cache
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.sourcelink.json
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.dll
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/refint/Procurement.Orchestration.Domain.dll
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/Procurement.Orchestration.Domain.pdb
+/workspace/backend/src/Procurement.Orchestration.Domain/obj/Release/net8.0/ref/Procurement.Orchestration.Domain.dll

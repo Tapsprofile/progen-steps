@@ -1,0 +1,426 @@
+{
+  "Comment": "Procurement Orchestration Engine - Purchase Request workflow (ASL). Encodes spend threshold routing, human-in-the-loop waits (task token), parallel finance/legal review, procurement service sub-workflow, and multi-stage authorisations.",
+  "StartAt": "MainFlow",
+  "States": {
+    "MainFlow": {
+      "Type": "Parallel",
+      "ResultPath": "$.State.MainFlow",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.State.Error",
+          "Next": "NotifyWorkflowFailed"
+        }
+      ],
+      "Branches": [
+        {
+          "StartAt": "NormalizeInput",
+          "States": {
+            "NormalizeInput": {
+              "Type": "Pass",
+              "Parameters": {
+                "PurchaseRequestId.$": "$.PurchaseRequestId",
+                "SpendAmount.$": "$.SpendAmount",
+                "ContractValue.$": "$.ContractValue",
+                "CurrentAssignee.$": "$.CurrentAssignee",
+                "ApprovalStatus.$": "$.ApprovalStatus",
+                "Authorization.$": "$.Authorization",
+                "Config.$": "$.Config",
+                "Thresholds.$": "$.Thresholds"
+              },
+              "ResultPath": "$",
+              "Next": "RouteBySpendThreshold"
+            },
+            "RouteBySpendThreshold": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.SpendAmount",
+                  "NumericGreaterThanEqualsPath": "$.Thresholds.CabinetApproval",
+                  "Next": "CabinetApprovalAndReport"
+                },
+                {
+                  "Variable": "$.SpendAmount",
+                  "NumericGreaterThanEqualsPath": "$.Thresholds.HighValueLegal",
+                  "Next": "HighValueLegalEscalation"
+                },
+                {
+                  "Variable": "$.SpendAmount",
+                  "NumericGreaterThanPath": "$.Thresholds.FinanceAndLegal",
+                  "Next": "FinanceAndLegalParallelReview"
+                },
+                {
+                  "Variable": "$.SpendAmount",
+                  "NumericGreaterThanPath": "$.Thresholds.TeamManagerLimit",
+                  "Next": "HeadOfServiceRouting"
+                }
+              ],
+              "Default": "TeamManagerRouting"
+            },
+            "TeamManagerRouting": {
+              "Type": "Task",
+              "Comment": "Level 1: < Spend Auth Limit. Bucket assignment + notify Team Manager.",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName.$": "$.Config.Lambdas.AssignAndNotifyTeamManager",
+                "Payload": {
+                  "PurchaseRequestId.$": "$.PurchaseRequestId",
+                  "SpendAmount.$": "$.SpendAmount",
+                  "ContractValue.$": "$.ContractValue",
+                  "Role": "TEAM_MANAGER"
+                }
+              },
+              "ResultPath": "$.State.TeamManagerRouting",
+              "Next": "WaitForBidEvaluationFormH"
+            },
+            "HeadOfServiceRouting": {
+              "Type": "Task",
+              "Comment": "Level 2: > Team Manager Limit. Bucket assignment + notify Head of Service.",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName.$": "$.Config.Lambdas.AssignAndNotifyHeadOfService",
+                "Payload": {
+                  "PurchaseRequestId.$": "$.PurchaseRequestId",
+                  "SpendAmount.$": "$.SpendAmount",
+                  "ContractValue.$": "$.ContractValue",
+                  "Role": "HEAD_OF_SERVICE"
+                }
+              },
+              "ResultPath": "$.State.HeadOfServiceRouting",
+              "Next": "WaitForBidEvaluationFormH"
+            },
+            "FinanceAndLegalParallelReview": {
+              "Type": "Parallel",
+              "Comment": "Level 3: > 300,000. Run Finance Officer (Section 151) and Legal Monitoring Officer in parallel.",
+              "ResultPath": "$.State.FinanceAndLegalParallelReview",
+              "Branches": [
+                {
+                  "StartAt": "FinanceOfficerAssignment",
+                  "States": {
+                    "FinanceOfficerAssignment": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.AssignAndNotifyFinanceOfficer",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId",
+                          "SpendAmount.$": "$.SpendAmount",
+                          "ContractValue.$": "$.ContractValue",
+                          "Role": "FINANCE_OFFICER_S151"
+                        }
+                      },
+                      "ResultPath": "$.State.FinanceOfficerAssignment",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "LegalMonitoringOfficerAssignment",
+                  "States": {
+                    "LegalMonitoringOfficerAssignment": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.AssignAndNotifyLegalMonitoringOfficer",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId",
+                          "SpendAmount.$": "$.SpendAmount",
+                          "ContractValue.$": "$.ContractValue",
+                          "Role": "LEGAL_MONITORING_OFFICER"
+                        }
+                      },
+                      "ResultPath": "$.State.LegalMonitoringOfficerAssignment",
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "WaitForBidEvaluationFormH"
+            },
+            "HighValueLegalEscalation": {
+              "Type": "Task",
+              "Comment": "Level 4: > 1,200,000. Escalate to Legal Monitoring Officer (High Value).",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName.$": "$.Config.Lambdas.AssignAndNotifyLegalMonitoringOfficerHighValue",
+                "Payload": {
+                  "PurchaseRequestId.$": "$.PurchaseRequestId",
+                  "SpendAmount.$": "$.SpendAmount",
+                  "ContractValue.$": "$.ContractValue",
+                  "Role": "LEGAL_MONITORING_OFFICER_HIGH_VALUE"
+                }
+              },
+              "ResultPath": "$.State.HighValueLegalEscalation",
+              "Next": "WaitForBidEvaluationFormH"
+            },
+            "CabinetApprovalAndReport": {
+              "Type": "Parallel",
+              "Comment": "Level 5: >= 2,400,000. Require Cabinet Approval & Cabinet Report (wait for dual document upload).",
+              "ResultPath": "$.State.CabinetApprovalAndReport",
+              "Branches": [
+                {
+                  "StartAt": "WaitForCabinetApprovalDoc",
+                  "States": {
+                    "WaitForCabinetApprovalDoc": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.RequestCabinetApprovalDocument",
+                        "Payload": {
+                          "TaskToken.$": "$$.Task.Token",
+                          "PurchaseRequestId.$": "$.PurchaseRequestId",
+                          "DocumentType": "CABINET_APPROVAL"
+                        }
+                      },
+                      "ResultPath": "$.State.WaitForCabinetApprovalDoc",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "WaitForCabinetReportDoc",
+                  "States": {
+                    "WaitForCabinetReportDoc": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.RequestCabinetReportDocument",
+                        "Payload": {
+                          "TaskToken.$": "$$.Task.Token",
+                          "PurchaseRequestId.$": "$.PurchaseRequestId",
+                          "DocumentType": "CABINET_REPORT"
+                        }
+                      },
+                      "ResultPath": "$.State.WaitForCabinetReportDoc",
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "WaitForBidEvaluationFormH"
+            },
+            "WaitForBidEvaluationFormH": {
+              "Type": "Task",
+              "Comment": "Post-evaluation phase (Form H): pause workflow until Bid Evaluation Form is submitted via external callback (SendTaskSuccess).",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName.$": "$.Config.Lambdas.RequestBidEvaluationFormH",
+                "Payload": {
+                  "TaskToken.$": "$$.Task.Token",
+                  "PurchaseRequestId.$": "$.PurchaseRequestId",
+                  "FormType": "BID_EVALUATION_FORM_H"
+                }
+              },
+              "ResultPath": "$.State.WaitForBidEvaluationFormH",
+              "Next": "ProcurementServiceModuleI"
+            },
+            "ProcurementServiceModuleI": {
+              "Type": "Parallel",
+              "Comment": "Module I: procurement service sub-workflow. Run E1-E6 in parallel (contract signing, Proactis updates, conflict-of-interest checks, etc).",
+              "ResultPath": "$.State.ProcurementServiceModuleI",
+              "Branches": [
+                {
+                  "StartAt": "E1ContractSigning",
+                  "States": {
+                    "E1ContractSigning": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E1ContractSigning",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E1ContractSigning",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "E2ProactisUpdate",
+                  "States": {
+                    "E2ProactisUpdate": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E2ProactisUpdate",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E2ProactisUpdate",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "E3ConflictOfInterestChecks",
+                  "States": {
+                    "E3ConflictOfInterestChecks": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E3ConflictOfInterestChecks",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E3ConflictOfInterestChecks",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "E4SupplierOnboarding",
+                  "States": {
+                    "E4SupplierOnboarding": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E4SupplierOnboarding",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E4SupplierOnboarding",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "E5AwardNoticeAndStandstill",
+                  "States": {
+                    "E5AwardNoticeAndStandstill": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E5AwardNoticeAndStandstill",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E5AwardNoticeAndStandstill",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "E6ContractRegisterAndCloseOut",
+                  "States": {
+                    "E6ContractRegisterAndCloseOut": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName.$": "$.Config.Lambdas.E6ContractRegisterAndCloseOut",
+                        "Payload": {
+                          "PurchaseRequestId.$": "$.PurchaseRequestId"
+                        }
+                      },
+                      "ResultPath": "$.State.E6ContractRegisterAndCloseOut",
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "AuthorisationPart1d"
+            },
+            "AuthorisationPart1d": {
+              "Type": "Map",
+              "Comment": "Multi-stage authorization Action 1: dynamic parallel iteration for N authorizing officers to review Part 1d.",
+              "ItemsPath": "$.Authorization.Part1dAuthorizers",
+              "MaxConcurrencyPath": "$.Config.Authorization.MaxConcurrency",
+              "Parameters": {
+                "PurchaseRequestId.$": "$.PurchaseRequestId",
+                "AuthorizerId.$": "$$.Map.Item.Value"
+              },
+              "ResultPath": "$.State.AuthorisationPart1d",
+              "Iterator": {
+                "StartAt": "WaitForPart1dApproval",
+                "States": {
+                  "WaitForPart1dApproval": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                    "Parameters": {
+                      "FunctionName.$": "$.Config.Lambdas.RequestPart1dApproval",
+                      "Payload": {
+                        "TaskToken.$": "$$.Task.Token",
+                        "PurchaseRequestId.$": "$.PurchaseRequestId",
+                        "AuthorizerId.$": "$.AuthorizerId",
+                        "ApprovalStage": "PART_1D"
+                      }
+                    },
+                    "ResultPath": "$.State.WaitForPart1dApproval",
+                    "End": true
+                  }
+                }
+              },
+              "Next": "AuthorisationPart2a"
+            },
+            "AuthorisationPart2a": {
+              "Type": "Map",
+              "Comment": "Multi-stage authorization Action 2: dynamic parallel iteration for N authorizing officers to review Part 2a.",
+              "ItemsPath": "$.Authorization.Part2aAuthorizers",
+              "MaxConcurrencyPath": "$.Config.Authorization.MaxConcurrency",
+              "Parameters": {
+                "PurchaseRequestId.$": "$.PurchaseRequestId",
+                "AuthorizerId.$": "$$.Map.Item.Value"
+              },
+              "ResultPath": "$.State.AuthorisationPart2a",
+              "Iterator": {
+                "StartAt": "WaitForPart2aApproval",
+                "States": {
+                  "WaitForPart2aApproval": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                    "Parameters": {
+                      "FunctionName.$": "$.Config.Lambdas.RequestPart2aApproval",
+                      "Payload": {
+                        "TaskToken.$": "$$.Task.Token",
+                        "PurchaseRequestId.$": "$.PurchaseRequestId",
+                        "AuthorizerId.$": "$.AuthorizerId",
+                        "ApprovalStage": "PART_2A"
+                      }
+                    },
+                    "ResultPath": "$.State.WaitForPart2aApproval",
+                    "End": true
+                  }
+                }
+              },
+              "Next": "WorkflowSucceeded"
+            },
+            "WorkflowSucceeded": {
+              "Type": "Succeed"
+            }
+          }
+        }
+      ],
+      "Next": "Done"
+    },
+    "NotifyWorkflowFailed": {
+      "Type": "Task",
+      "Comment": "Catch-all failure handler: publish to WorkflowFailed SNS topic.",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn.$": "$.Config.Sns.WorkflowFailedTopicArn",
+        "Message": {
+          "PurchaseRequestId.$": "$.PurchaseRequestId",
+          "Error.$": "$.State.Error.Error",
+          "Cause.$": "$.State.Error.Cause",
+          "Input.$": "$"
+        }
+      },
+      "ResultPath": "$.State.NotifyWorkflowFailed",
+      "Next": "Failed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "Error": "WorkflowFailed",
+      "Cause": "An error occurred in the procurement orchestration workflow."
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}

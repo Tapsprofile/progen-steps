@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "dgSpecHash": "Szw4nNcuO/gVT0L0Sh5FttbOcRGvS7oe7oa8wzLXqisAaBnLH0HWY1yO49PiujCV8RSABSKMmOwswVYKgwVrmg==",
+  "success": true,
+  "projectFilePath": "/workspace/backend/src/Procurement.Orchestration.Api/Procurement.Orchestration.Api.csproj",
+  "expectedPackageFiles": [
+    "/home/ubuntu/.nuget/packages/awssdk.core/4.0.3.6/awssdk.core.4.0.3.6.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/awssdk.dynamodbv2/4.0.10.4/awssdk.dynamodbv2.4.0.10.4.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/awssdk.eventbridge/4.0.5.10/awssdk.eventbridge.4.0.5.10.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/awssdk.extensions.netcore.setup/4.0.3.17/awssdk.extensions.netcore.setup.4.0.3.17.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/awssdk.simplenotificationservice/4.0.2.10/awssdk.simplenotificationservice.4.0.2.10.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/awssdk.stepfunctions/4.0.2.4/awssdk.stepfunctions.4.0.2.4.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.aspnetcore.openapi/8.0.22/microsoft.aspnetcore.openapi.8.0.22.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.apidescription.server/6.0.5/microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.configuration/10.0.1/microsoft.extensions.configuration.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.configuration.abstractions/10.0.1/microsoft.extensions.configuration.abstractions.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.configuration.binder/10.0.1/microsoft.extensions.configuration.binder.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.1/microsoft.extensions.dependencyinjection.abstractions.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.logging.abstractions/2.0.0/microsoft.extensions.logging.abstractions.2.0.0.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.options/10.0.1/microsoft.extensions.options.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.options.configurationextensions/10.0.1/microsoft.extensions.options.configurationextensions.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.primitives/10.0.1/microsoft.extensions.primitives.10.0.1.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/microsoft.openapi/1.6.14/microsoft.openapi.1.6.14.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/swashbuckle.aspnetcore/6.6.2/swashbuckle.aspnetcore.6.6.2.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/swashbuckle.aspnetcore.swagger/6.6.2/swashbuckle.aspnetcore.swagger.6.6.2.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/swashbuckle.aspnetcore.swaggergen/6.6.2/swashbuckle.aspnetcore.swaggergen.6.6.2.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/swashbuckle.aspnetcore.swaggerui/6.6.2/swashbuckle.aspnetcore.swaggerui.6.6.2.nupkg.sha512"
+  ],
+  "logs": []
+}

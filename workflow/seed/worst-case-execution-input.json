@@ -1,0 +1,58 @@
+{
+  "PurchaseRequestId": "PR-2025-000042",
+  "SpendAmount": 2500000,
+  "ContractValue": 2800000,
+  "CurrentAssignee": "REQUESTOR",
+  "ApprovalStatus": "SUBMITTED",
+  "Authorization": {
+    "Part1dAuthorizers": [
+      "AUTH-001",
+      "AUTH-002",
+      "AUTH-003",
+      "AUTH-004"
+    ],
+    "Part2aAuthorizers": [
+      "AUTH-101",
+      "AUTH-102",
+      "AUTH-103"
+    ]
+  },
+  "Thresholds": {
+    "SpendAuthLimit": 50000,
+    "TeamManagerLimit": 50000,
+    "FinanceAndLegal": 300000,
+    "HighValueLegal": 1200000,
+    "CabinetApproval": 2400000
+  },
+  "Config": {
+    "Authorization": {
+      "MaxConcurrency": 10
+    },
+    "Sns": {
+      "WorkflowFailedTopicArn": "arn:aws:sns:eu-west-2:123456789012:procurement-workflow-failed"
+    },
+    "Lambdas": {
+      "AssignAndNotifyTeamManager": "arn:aws:lambda:eu-west-2:123456789012:function:AssignAndNotifyTeamManager",
+      "AssignAndNotifyHeadOfService": "arn:aws:lambda:eu-west-2:123456789012:function:AssignAndNotifyHeadOfService",
+      "AssignAndNotifyFinanceOfficer": "arn:aws:lambda:eu-west-2:123456789012:function:AssignAndNotifyFinanceOfficer",
+      "AssignAndNotifyLegalMonitoringOfficer": "arn:aws:lambda:eu-west-2:123456789012:function:AssignAndNotifyLegalMonitoringOfficer",
+      "AssignAndNotifyLegalMonitoringOfficerHighValue": "arn:aws:lambda:eu-west-2:123456789012:function:AssignAndNotifyLegalMonitoringOfficerHighValue",
+      "RequestCabinetApprovalDocument": "arn:aws:lambda:eu-west-2:123456789012:function:RequestCabinetApprovalDocument",
+      "RequestCabinetReportDocument": "arn:aws:lambda:eu-west-2:123456789012:function:RequestCabinetReportDocument",
+      "RequestBidEvaluationFormH": "arn:aws:lambda:eu-west-2:123456789012:function:RequestBidEvaluationFormH",
+      "E1ContractSigning": "arn:aws:lambda:eu-west-2:123456789012:function:E1ContractSigning",
+      "E2ProactisUpdate": "arn:aws:lambda:eu-west-2:123456789012:function:E2ProactisUpdate",
+      "E3ConflictOfInterestChecks": "arn:aws:lambda:eu-west-2:123456789012:function:E3ConflictOfInterestChecks",
+      "E4SupplierOnboarding": "arn:aws:lambda:eu-west-2:123456789012:function:E4SupplierOnboarding",
+      "E5AwardNoticeAndStandstill": "arn:aws:lambda:eu-west-2:123456789012:function:E5AwardNoticeAndStandstill",
+      "E6ContractRegisterAndCloseOut": "arn:aws:lambda:eu-west-2:123456789012:function:E6ContractRegisterAndCloseOut",
+      "RequestPart1dApproval": "arn:aws:lambda:eu-west-2:123456789012:function:RequestPart1dApproval",
+      "RequestPart2aApproval": "arn:aws:lambda:eu-west-2:123456789012:function:RequestPart2aApproval"
+    }
+  },
+  "SuggestedSchemaImprovements": {
+    "CurrentAssignee": "Persist the current bucket owner (role/user) for UI + audit.",
+    "ApprovalStatus": "Persist status (Draft/Submitted/InReview/Approved/Rejected/Failed) for queries and dashboards.",
+    "TaskToken": "Persist callback token for Human-in-the-loop waits (Form H + Cabinet documents) so external APIs can resume Step Functions."
+  }
+}
