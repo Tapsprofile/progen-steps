@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "ztmF1RYcbqctN4jIzVXoYOkbBjN+Z0CS/LNh2T7RepA=",
+  "Source": "Procurement.Orchestration",
+  "BasePath": "_content/Procurement.Orchestration",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
