@@ -18,10 +18,5 @@
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <PkgMicrosoft_Extensions_ApiDescription_Server Condition=" '$(PkgMicrosoft_Extensions_ApiDescription_Server)' == '' ">/home/ubuntu/.nuget/packages/microsoft.extensions.apidescription.server/6.0.5</PkgMicrosoft_Extensions_ApiDescription_Server>
-    <PkgAWSSDK_Core Condition=" '$(PkgAWSSDK_Core)' == '' ">/home/ubuntu/.nuget/packages/awssdk.core/4.0.3.6</PkgAWSSDK_Core>
-    <PkgAWSSDK_StepFunctions Condition=" '$(PkgAWSSDK_StepFunctions)' == '' ">/home/ubuntu/.nuget/packages/awssdk.stepfunctions/4.0.2.4</PkgAWSSDK_StepFunctions>
-    <PkgAWSSDK_SimpleNotificationService Condition=" '$(PkgAWSSDK_SimpleNotificationService)' == '' ">/home/ubuntu/.nuget/packages/awssdk.simplenotificationservice/4.0.2.10</PkgAWSSDK_SimpleNotificationService>
-    <PkgAWSSDK_EventBridge Condition=" '$(PkgAWSSDK_EventBridge)' == '' ">/home/ubuntu/.nuget/packages/awssdk.eventbridge/4.0.5.10</PkgAWSSDK_EventBridge>
-    <PkgAWSSDK_DynamoDBv2 Condition=" '$(PkgAWSSDK_DynamoDBv2)' == '' ">/home/ubuntu/.nuget/packages/awssdk.dynamodbv2/4.0.10.4</PkgAWSSDK_DynamoDBv2>
   </PropertyGroup>
 </Project>

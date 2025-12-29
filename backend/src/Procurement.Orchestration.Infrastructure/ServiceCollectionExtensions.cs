@@ -1,6 +1,3 @@
-using Amazon.DynamoDBv2;
-using Amazon.EventBridge;
-using Amazon.StepFunctions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Procurement.Orchestration.Application;
@@ -13,17 +10,15 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<AwsWorkflowOptions>(configuration.GetSection("AwsWorkflow"));
+        // Handwritten engine configuration
+        services.Configure<HandwrittenWorkflowOptions>(configuration.GetSection("HandwrittenWorkflow"));
 
-        services.AddAWSService<IAmazonDynamoDB>();
-        services.AddAWSService<IAmazonEventBridge>();
-        services.AddAWSService<IAmazonStepFunctions>();
+        // In-memory adapters (replace with DB/event-store implementations for production)
+        services.AddSingleton<IPurchaseRequestRepository, InMemoryPurchaseRequestRepository>();
+        services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
-        services.AddSingleton<IPurchaseRequestRepository, DynamoPurchaseRequestRepository>();
-        services.AddSingleton<IEventPublisher, EventBridgePublisher>();
-        services.AddSingleton<ITaskTokenStore, DynamoTaskTokenStore>();
-        services.AddSingleton<ITaskTokenCallback, StepFunctionsCallback>();
-        services.AddSingleton<IWorkflowStarter, StepFunctionsWorkflowStarter>();
+        // Handwritten runtime
+        services.AddSingleton<IWorkflowRuntime, HandwrittenWorkflowRuntime>();
 
         return services;
     }

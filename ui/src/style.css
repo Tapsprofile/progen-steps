@@ -95,6 +95,15 @@ input {
   font-size: 14px;
 }
 
+select,
+textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 10px;
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
 .row {
   margin-top: 12px;
   display: flex;

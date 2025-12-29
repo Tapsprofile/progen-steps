@@ -234,25 +234,9 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
-            "AWSSDK.DynamoDBv2": {
+            "Microsoft.Extensions.Logging.Abstractions": {
               "target": "Package",
-              "version": "[4.0.10.4, )"
-            },
-            "AWSSDK.EventBridge": {
-              "target": "Package",
-              "version": "[4.0.5.10, )"
-            },
-            "AWSSDK.Extensions.NETCore.Setup": {
-              "target": "Package",
-              "version": "[4.0.3.17, )"
-            },
-            "AWSSDK.SimpleNotificationService": {
-              "target": "Package",
-              "version": "[4.0.2.10, )"
-            },
-            "AWSSDK.StepFunctions": {
-              "target": "Package",
-              "version": "[4.0.2.4, )"
+              "version": "[10.0.1, )"
             },
             "Microsoft.Extensions.Options": {
               "target": "Package",

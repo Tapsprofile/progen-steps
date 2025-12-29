@@ -4,6 +4,14 @@ import { computed, ref } from 'vue'
 const apiBaseUrl = computed(() => import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000')
 
 type CreatePurchaseRequestResponse = { purchaseRequestId: string; workflowExecutionArn: string }
+type PendingTask = {
+  taskToken: string
+  purchaseRequestId: string
+  taskType: string
+  actorId?: string | null
+  description: string
+  createdAtUtc: string
+}
 
 const prId = ref('')
 const spendAmount = ref<number>(2500000)
@@ -14,10 +22,13 @@ const part2aAuthorizers = ref('AUTH-101,AUTH-102,AUTH-103')
 
 const createResult = ref<CreatePurchaseRequestResponse | null>(null)
 const createError = ref<string | null>(null)
+const pendingTasks = ref<PendingTask[]>([])
+const selectedTaskToken = ref<string>('')
 
 async function createPurchaseRequest() {
   createError.value = null
   createResult.value = null
+  pendingTasks.value = []
 
   const res = await fetch(`${apiBaseUrl.value}/purchase-requests`, {
     method: 'POST',
@@ -44,31 +55,48 @@ async function createPurchaseRequest() {
   }
 
   createResult.value = (await res.json()) as CreatePurchaseRequestResponse
+  await refreshPendingTasks()
 }
 
 const callbackPurchaseRequestId = ref('PR-2025-000042')
-const bidEvalNotes = ref('Bid evaluation completed.')
-const bidEvalAwardAmount = ref<number>(2500000)
+const callbackOutputJson = ref<string>(JSON.stringify({ form: 'BID_EVALUATION_FORM_H', notes: 'Bid evaluation completed.' }, null, 2))
 const callbackResult = ref<unknown | null>(null)
 const callbackError = ref<string | null>(null)
 
-async function submitBidEvaluationFormH() {
+async function refreshPendingTasks() {
+  const id = createResult.value?.purchaseRequestId || callbackPurchaseRequestId.value
+  if (!id) return
+  const res = await fetch(`${apiBaseUrl.value}/purchase-requests/${encodeURIComponent(id)}/pending-tasks`)
+  if (!res.ok) return
+  pendingTasks.value = (await res.json()) as PendingTask[]
+  if (!selectedTaskToken.value && pendingTasks.value.length > 0) selectedTaskToken.value = pendingTasks.value[0]!.taskToken
+}
+
+async function submitCallback() {
   callbackError.value = null
   callbackResult.value = null
 
-  const res = await fetch(`${apiBaseUrl.value}/callbacks/bid-evaluation`, {
+  let parsed: unknown
+  try {
+    parsed = callbackOutputJson.value ? JSON.parse(callbackOutputJson.value) : {}
+  } catch (e) {
+    callbackError.value = `Invalid JSON output: ${(e as Error).message}`
+    return
+  }
+
+  const res = await fetch(`${apiBaseUrl.value}/workflow/callbacks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      purchaseRequestId: callbackPurchaseRequestId.value,
-      notes: bidEvalNotes.value,
-      awardAmount: Number(bidEvalAwardAmount.value),
+      taskToken: selectedTaskToken.value,
+      output: parsed,
     }),
   })
 
   const text = await res.text()
   callbackResult.value = text ? JSON.parse(text) : null
   if (!res.ok) callbackError.value = text
+  await refreshPendingTasks()
 }
 </script>
 
@@ -114,17 +142,31 @@ async function submitBidEvaluationFormH() {
 
       <div class="row">
         <button @click="createPurchaseRequest">Create + Start Workflow</button>
+        <button @click="refreshPendingTasks" :disabled="!(createResult?.purchaseRequestId || callbackPurchaseRequestId)">Refresh pending tasks</button>
       </div>
 
       <pre v-if="createResult" class="pre ok">{{ createResult }}</pre>
       <pre v-if="createError" class="pre err">{{ createError }}</pre>
+
+      <div v-if="pendingTasks.length" class="pre ok">
+        <strong>Pending tasks</strong>
+        <div style="margin-top: 10px; display: grid; gap: 8px">
+          <label class="span2">
+            TaskToken
+            <select v-model="selectedTaskToken">
+              <option v-for="t in pendingTasks" :key="t.taskToken" :value="t.taskToken">
+                {{ t.taskType }}{{ t.actorId ? ` (${t.actorId})` : '' }} - {{ t.description }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Submit Bid Evaluation Form H (callback)</h2>
+      <h2>Submit callback (resume by TaskToken)</h2>
       <p class="muted">
-        This will only succeed once the workflow has reached the <code>waitForTaskToken</code> state and a token has been
-        persisted for the PurchaseRequestId.
+        Pick a pending <code>TaskToken</code> and send output JSON to resume the handwritten workflow.
       </p>
 
       <div class="grid">
@@ -133,17 +175,14 @@ async function submitBidEvaluationFormH() {
           <input v-model="callbackPurchaseRequestId" />
         </label>
         <label class="span2">
-          Notes
-          <input v-model="bidEvalNotes" />
-        </label>
-        <label>
-          AwardAmount
-          <input v-model.number="bidEvalAwardAmount" type="number" min="1" step="1" />
+          Output (JSON)
+          <textarea v-model="callbackOutputJson" rows="8" style="width: 100%"></textarea>
         </label>
       </div>
 
       <div class="row">
-        <button @click="submitBidEvaluationFormH">Submit Form H</button>
+        <button @click="refreshPendingTasks">Refresh pending tasks</button>
+        <button @click="submitCallback" :disabled="!selectedTaskToken">Submit callback</button>
       </div>
 
       <pre v-if="callbackResult" class="pre ok">{{ callbackResult }}</pre>

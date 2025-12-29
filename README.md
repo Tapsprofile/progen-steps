@@ -2,16 +2,18 @@
 
 This repo contains:
 
-- **Workflow (ASL)**: a Step Functions state machine implementing spend-threshold routing, finance/legal parallel review, cabinet dual-document waits, a Form H task-token pause, procurement parallel tasks (E1–E6), and dynamic authoriser Maps (Part 1d + Part 2a).
+- **Handwritten workflow engine (no AWS Step Functions)**: a small in-process orchestration runtime that executes an ASL-inspired JSON definition, including spend-threshold routing, parallel “wait for X” phases, and dynamic authoriser Maps.
 - **Seed data (JSON)**: “worst case” input (Spend \(\ge 2.4M\)) to exercise the highest-value branch.
-- **Backend (.NET 8)**: CQRS-style API skeleton to create purchase requests, start executions, and submit callbacks (SendTaskSuccess).
+- **Backend (.NET 8)**: CQRS-style API skeleton to create purchase requests, start executions, list pending task tokens, and submit callbacks to resume the workflow.
 - **UI (Vue 3)**: a minimal screen to create a request and submit Form H.
 
 ## Workflow assets
 
-- **ASL**: `workflow/asl/purchase-request-orchestration.asl.json`
+- **Handwritten definition**: `workflow/handwritten/purchase-request-workflow.json`
 - **Thresholds lookup**: `workflow/seed/thresholds.json`
 - **Worst-case execution input**: `workflow/seed/worst-case-execution-input.json`
+
+Legacy (not used): `workflow/legacy/aws-stepfunctions/`
 
 ### Data flow guarantees
 
@@ -20,7 +22,7 @@ This repo contains:
 
 ### Human-in-the-loop waits
 
-The ASL uses `.waitForTaskToken` for:
+The handwritten runtime issues **TaskTokens** for:
 
 - Cabinet Approval document upload
 - Cabinet Report document upload
@@ -28,7 +30,7 @@ The ASL uses `.waitForTaskToken` for:
 - Part 1d approvals (Map)
 - Part 2a approvals (Map)
 
-**Implementation note**: the Lambda invoked by each `.waitForTaskToken` step must persist the generated `TaskToken` so an external API can later call `SendTaskSuccess`.
+**Implementation note**: tokens are generated + tracked inside the API (in-memory in this starter). External systems resume by calling the callback endpoint with the `TaskToken`.
 
 ## Backend (CQRS + callbacks)
 
@@ -43,8 +45,8 @@ dotnet run --project backend/src/Procurement.Orchestration.Api
 Key endpoints:
 
 - `POST /purchase-requests` starts the workflow
-- `POST /callbacks/bid-evaluation` submits Form H (requires stored token)
-- `POST /debug/task-tokens` dev helper to seed a token for callback testing
+- `GET /purchase-requests/{id}/pending-tasks` lists task tokens to complete
+- `POST /workflow/callbacks` resumes the workflow by `TaskToken`
 
 ## UI (Vue 3)
 

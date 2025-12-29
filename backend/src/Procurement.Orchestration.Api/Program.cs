@@ -51,55 +51,19 @@ app.MapGet("/purchase-requests/{purchaseRequestId}", async (string purchaseReque
     return pr is null ? Results.NotFound() : Results.Ok(pr);
 }).WithOpenApi();
 
-app.MapPost("/callbacks/bid-evaluation", async (SubmitBidEvaluationRequest req, IDispatcher dispatcher, CancellationToken ct) =>
+app.MapGet("/purchase-requests/{purchaseRequestId}/pending-tasks", async (string purchaseRequestId, IWorkflowRuntime workflow, CancellationToken ct) =>
 {
-    var result = await dispatcher.Send(new SubmitCallbackCommand(
-        PurchaseRequestId: req.PurchaseRequestId,
-        TokenType: TaskTokenType.BidEvaluationFormH,
-        Output: new { FormType = "BID_EVALUATION_FORM_H", SubmittedAtUtc = DateTimeOffset.UtcNow, req }), ct);
-
-    return result.Completed ? Results.Ok(result) : Results.NotFound(new { Message = "No task token found (workflow not waiting or token not persisted yet).", result });
+    var tasks = await workflow.ListPendingTasks(purchaseRequestId, ct);
+    return Results.Ok(tasks);
 }).WithOpenApi();
 
-app.MapPost("/callbacks/document", async (SubmitDocumentRequest req, IDispatcher dispatcher, CancellationToken ct) =>
+app.MapPost("/workflow/callbacks", async (SubmitCallbackRequest req, IDispatcher dispatcher, CancellationToken ct) =>
 {
-    var tokenType = req.DocumentType switch
-    {
-        "CABINET_APPROVAL" => TaskTokenType.CabinetApprovalDocument,
-        "CABINET_REPORT" => TaskTokenType.CabinetReportDocument,
-        _ => throw new ArgumentOutOfRangeException(nameof(req.DocumentType), "Unsupported DocumentType.")
-    };
+    var result = await dispatcher.Send(new SubmitCallbackByTokenCommand(
+        TaskToken: req.TaskToken,
+        Output: new { SubmittedAtUtc = DateTimeOffset.UtcNow, req.Output }), ct);
 
-    var result = await dispatcher.Send(new SubmitCallbackCommand(
-        PurchaseRequestId: req.PurchaseRequestId,
-        TokenType: tokenType,
-        Output: new { req.DocumentType, req.DocumentUri, SubmittedAtUtc = DateTimeOffset.UtcNow }), ct);
-
-    return result.Completed ? Results.Ok(result) : Results.NotFound(new { Message = "No task token found.", result });
-}).WithOpenApi();
-
-app.MapPost("/callbacks/approval", async (SubmitApprovalRequest req, IDispatcher dispatcher, CancellationToken ct) =>
-{
-    var tokenType = req.Stage switch
-    {
-        "PART_1D" => TaskTokenType.Part1dApproval,
-        "PART_2A" => TaskTokenType.Part2aApproval,
-        _ => throw new ArgumentOutOfRangeException(nameof(req.Stage), "Unsupported stage.")
-    };
-
-    var result = await dispatcher.Send(new SubmitCallbackCommand(
-        PurchaseRequestId: req.PurchaseRequestId,
-        TokenType: tokenType,
-        Output: new { req.Stage, req.AuthorizerId, req.Decision, SubmittedAtUtc = DateTimeOffset.UtcNow }), ct);
-
-    return result.Completed ? Results.Ok(result) : Results.NotFound(new { Message = "No task token found.", result });
-}).WithOpenApi();
-
-// Local/dev helper: allow seeding a token to test callbacks without deploying Lambda requesters.
-app.MapPost("/debug/task-tokens", async (SeedTaskTokenRequest req, ITaskTokenStore store, CancellationToken ct) =>
-{
-    await store.SaveToken(req.PurchaseRequestId, req.TokenType, req.TaskToken, ct);
-    return Results.Ok(new { req.PurchaseRequestId, req.TokenType });
+    return Results.Ok(result);
 }).WithOpenApi();
 
 app.Run();
@@ -112,7 +76,4 @@ internal sealed record CreatePurchaseRequestRequest(
     string[]? Part1dAuthorizers,
     string[]? Part2aAuthorizers);
 
-internal sealed record SubmitBidEvaluationRequest(string PurchaseRequestId, string? Notes, decimal? AwardAmount);
-internal sealed record SubmitDocumentRequest(string PurchaseRequestId, string DocumentType, string DocumentUri);
-internal sealed record SubmitApprovalRequest(string PurchaseRequestId, string Stage, string AuthorizerId, string Decision);
-internal sealed record SeedTaskTokenRequest(string PurchaseRequestId, TaskTokenType TokenType, string TaskToken);
+internal sealed record SubmitCallbackRequest(string TaskToken, object Output);

@@ -5,12 +5,6 @@
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Procurement.Orchestration.Api.runtimeconfig.json
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Procurement.Orchestration.Api.dll
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Procurement.Orchestration.Api.pdb
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.Core.dll
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.DynamoDBv2.dll
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.EventBridge.dll
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.Extensions.NETCore.Setup.dll
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.SimpleNotificationService.dll
-/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/AWSSDK.StepFunctions.dll
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Microsoft.AspNetCore.OpenApi.dll
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Microsoft.Extensions.Configuration.dll
 /workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll
@@ -51,3 +45,5 @@
 /workspace/backend/src/Procurement.Orchestration.Api/obj/Release/net8.0/Procurement.Orchestration.Api.pdb
 /workspace/backend/src/Procurement.Orchestration.Api/obj/Release/net8.0/Procurement.Orchestration.Api.genruntimeconfig.cache
 /workspace/backend/src/Procurement.Orchestration.Api/obj/Release/net8.0/ref/Procurement.Orchestration.Api.dll
+/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/Microsoft.Extensions.Logging.Abstractions.dll
+/workspace/backend/src/Procurement.Orchestration.Api/bin/Release/net8.0/System.Diagnostics.DiagnosticSource.dll

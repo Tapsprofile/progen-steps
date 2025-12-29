@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Procurement.Orchestration.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a930191c06ebad6d6ac10a5d1478bfda4eb78d8e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+34390c3e590a2fabab45dc0d539c7b421ffc55e7")]
 [assembly: System.Reflection.AssemblyProductAttribute("Procurement.Orchestration.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Procurement.Orchestration.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

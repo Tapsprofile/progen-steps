@@ -1,0 +1,21 @@
+{
+  "name": "purchase-request-orchestration",
+  "version": 1,
+  "description": "Handwritten orchestration definition (ASL-inspired). Supports Choice routing, Parallel waits (multi-token), and dynamic Map authorisations.",
+  "thresholds": {
+    "SpendAuthLimit": 50000,
+    "TeamManagerLimit": 50000,
+    "FinanceAndLegal": 300000,
+    "HighValueLegal": 1200000,
+    "CabinetApproval": 2400000
+  },
+  "phases": [
+    { "type": "routeBySpend" },
+    { "type": "cabinetDocsIfRequired", "documents": ["CABINET_APPROVAL", "CABINET_REPORT"] },
+    { "type": "waitForFormH", "form": "BID_EVALUATION_FORM_H" },
+    { "type": "procurementModuleI", "tasks": ["E1", "E2", "E3", "E4", "E5", "E6"] },
+    { "type": "authorisationMap", "stage": "PART_1D", "authorizersPath": "$.Authorization.Part1dAuthorizers" },
+    { "type": "authorisationMap", "stage": "PART_2A", "authorizersPath": "$.Authorization.Part2aAuthorizers" },
+    { "type": "succeed" }
+  ]
+}

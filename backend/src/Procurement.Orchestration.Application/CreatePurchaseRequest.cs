@@ -15,7 +15,7 @@ public sealed record CreatePurchaseRequestResult(string PurchaseRequestId, strin
 public sealed class CreatePurchaseRequestHandler(
     IPurchaseRequestRepository repository,
     IEventPublisher events,
-    IWorkflowStarter workflowStarter)
+    IWorkflowRuntime workflowRuntime)
     : ICommandHandler<CreatePurchaseRequestCommand, CreatePurchaseRequestResult>
 {
     public async Task<CreatePurchaseRequestResult> Handle(CreatePurchaseRequestCommand command, CancellationToken ct)
@@ -35,18 +35,22 @@ public sealed class CreatePurchaseRequestHandler(
             await events.Publish(e, ct);
         }
 
-        // Workflow module: start Step Functions execution.
-        var executionArn = await workflowStarter.StartPurchaseRequestWorkflow(
-            purchaseRequestId: pr.PurchaseRequestId,
-            spendAmount: pr.SpendAmount,
-            contractValue: pr.ContractValue,
-            currentAssignee: pr.CurrentAssignee,
-            approvalStatus: pr.Status.ToString(),
-            part1dAuthorizers: command.Part1dAuthorizers,
-            part2aAuthorizers: command.Part2aAuthorizers,
-            ct);
+        // Workflow module: start handwritten workflow execution.
+        var start = await workflowRuntime.StartPurchaseRequestWorkflow(new
+        {
+            PurchaseRequestId = pr.PurchaseRequestId,
+            SpendAmount = pr.SpendAmount,
+            ContractValue = pr.ContractValue,
+            CurrentAssignee = pr.CurrentAssignee,
+            ApprovalStatus = pr.Status.ToString(),
+            Authorization = new
+            {
+                Part1dAuthorizers = command.Part1dAuthorizers,
+                Part2aAuthorizers = command.Part2aAuthorizers
+            }
+        }, ct);
 
-        return new CreatePurchaseRequestResult(pr.PurchaseRequestId, executionArn);
+        return new CreatePurchaseRequestResult(pr.PurchaseRequestId, start.ExecutionId);
     }
 }
 

@@ -13,37 +13,38 @@ public interface IEventPublisher
     Task Publish(DomainEvent e, CancellationToken ct);
 }
 
-public interface IWorkflowStarter
+public enum WorkflowExecutionStatus
 {
-    Task<string> StartPurchaseRequestWorkflow(
-        string purchaseRequestId,
-        decimal spendAmount,
-        decimal contractValue,
-        string currentAssignee,
-        string approvalStatus,
-        string[] part1dAuthorizers,
-        string[] part2aAuthorizers,
-        CancellationToken ct);
+    Running = 0,
+    Waiting = 1,
+    Succeeded = 2,
+    Failed = 3
 }
 
-public enum TaskTokenType
-{
-    BidEvaluationFormH,
-    CabinetApprovalDocument,
-    CabinetReportDocument,
-    Part1dApproval,
-    Part2aApproval
-}
+public sealed record PendingTask(
+    string TaskToken,
+    string PurchaseRequestId,
+    string TaskType,
+    string? ActorId,
+    string Description,
+    DateTimeOffset CreatedAtUtc);
 
-public interface ITaskTokenStore
-{
-    Task SaveToken(string purchaseRequestId, TaskTokenType tokenType, string taskToken, CancellationToken ct);
-    Task<string?> GetToken(string purchaseRequestId, TaskTokenType tokenType, CancellationToken ct);
-    Task DeleteToken(string purchaseRequestId, TaskTokenType tokenType, CancellationToken ct);
-}
+public sealed record WorkflowStartResult(
+    string ExecutionId,
+    string PurchaseRequestId,
+    WorkflowExecutionStatus Status,
+    IReadOnlyList<PendingTask> PendingTasks);
 
-public interface ITaskTokenCallback
+public sealed record WorkflowResumeResult(
+    string ExecutionId,
+    string PurchaseRequestId,
+    WorkflowExecutionStatus Status,
+    IReadOnlyList<PendingTask> PendingTasks);
+
+public interface IWorkflowRuntime
 {
-    Task SendSuccess(string taskToken, object output, CancellationToken ct);
+    Task<WorkflowStartResult> StartPurchaseRequestWorkflow(object input, CancellationToken ct);
+    Task<WorkflowResumeResult> ResumeByTaskToken(string taskToken, object output, CancellationToken ct);
+    Task<IReadOnlyList<PendingTask>> ListPendingTasks(string purchaseRequestId, CancellationToken ct);
 }
 

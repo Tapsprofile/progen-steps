@@ -11,7 +11,7 @@ public static class ServiceCollectionExtensions
         // CQRS registrations
         services.AddSingleton<ICommandHandler<CreatePurchaseRequestCommand, CreatePurchaseRequestResult>, CreatePurchaseRequestHandler>();
         services.AddSingleton<IQueryHandler<GetPurchaseRequestQuery, Domain.PurchaseRequest?>, GetPurchaseRequestHandler>();
-        services.AddSingleton<ICommandHandler<SubmitCallbackCommand, SubmitCallbackResult>, SubmitCallbackHandler>();
+        services.AddSingleton<ICommandHandler<SubmitCallbackByTokenCommand, WorkflowResumeResult>, SubmitCallbackByTokenHandler>();
 
         return services;
     }
