@@ -57,6 +57,12 @@ app.MapGet("/purchase-requests/{purchaseRequestId}/pending-tasks", async (string
     return Results.Ok(tasks);
 }).WithOpenApi();
 
+app.MapGet("/workflow/executions/{executionId}", async (string executionId, IWorkflowRuntime workflow, CancellationToken ct) =>
+{
+    var view = await workflow.GetExecutionView(executionId, ct);
+    return view is null ? Results.NotFound() : Results.Ok(view);
+}).WithOpenApi();
+
 app.MapPost("/workflow/callbacks", async (SubmitCallbackRequest req, IDispatcher dispatcher, CancellationToken ct) =>
 {
     var result = await dispatcher.Send(new SubmitCallbackByTokenCommand(

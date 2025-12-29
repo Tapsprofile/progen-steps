@@ -10,7 +10,7 @@ public sealed record CreatePurchaseRequestCommand(
     string[] Part1dAuthorizers,
     string[] Part2aAuthorizers) : ICommand<CreatePurchaseRequestResult>;
 
-public sealed record CreatePurchaseRequestResult(string PurchaseRequestId, string WorkflowExecutionArn);
+public sealed record CreatePurchaseRequestResult(string PurchaseRequestId, WorkflowExecutionView Execution);
 
 public sealed class CreatePurchaseRequestHandler(
     IPurchaseRequestRepository repository,
@@ -50,7 +50,7 @@ public sealed class CreatePurchaseRequestHandler(
             }
         }, ct);
 
-        return new CreatePurchaseRequestResult(pr.PurchaseRequestId, start.ExecutionId);
+        return new CreatePurchaseRequestResult(pr.PurchaseRequestId, start.View);
     }
 }
 

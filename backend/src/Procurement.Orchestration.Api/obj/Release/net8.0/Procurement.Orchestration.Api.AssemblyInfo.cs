@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Procurement.Orchestration.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+34390c3e590a2fabab45dc0d539c7b421ffc55e7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d8fca801a65a4d90e872d17c878efb467c9290f0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Procurement.Orchestration.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Procurement.Orchestration.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

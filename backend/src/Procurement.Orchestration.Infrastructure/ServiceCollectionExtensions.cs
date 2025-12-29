@@ -17,6 +17,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPurchaseRequestRepository, InMemoryPurchaseRequestRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
+        // Workflow CQRS store (read model)
+        services.AddSingleton<IWorkflowStore, InMemoryWorkflowStore>();
+
         // Handwritten runtime
         services.AddSingleton<IWorkflowRuntime, HandwrittenWorkflowRuntime>();
 

@@ -38,31 +38,36 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
 
     private readonly ILogger<HandwrittenWorkflowRuntime> _log;
     private readonly HandwrittenWorkflowOptions _options;
+    private readonly IWorkflowStore _store;
 
-    // In-memory store for demo; replace with DB/event store for production.
-    private readonly ConcurrentDictionary<string, ExecutionState> _executions = new();
-    private readonly ConcurrentDictionary<string, string> _taskTokenToExecutionId = new();
+    // In-memory runtime cache for "current execution state". Persisted snapshots live in IWorkflowStore.
+    private readonly ConcurrentDictionary<string, ExecutionState> _executionCache = new();
 
     private HandwrittenWorkflowDefinition? _definition;
 
-    public HandwrittenWorkflowRuntime(ILogger<HandwrittenWorkflowRuntime> log, IOptions<HandwrittenWorkflowOptions> options)
+    public HandwrittenWorkflowRuntime(
+        ILogger<HandwrittenWorkflowRuntime> log,
+        IOptions<HandwrittenWorkflowOptions> options,
+        IWorkflowStore store)
     {
         _log = log;
         _options = options.Value;
+        _store = store;
     }
 
     public Task<IReadOnlyList<PendingTask>> ListPendingTasks(string purchaseRequestId, CancellationToken ct)
-    {
-        var tokens = _executions.Values
-            .Where(e => e.PurchaseRequestId == purchaseRequestId)
-            .SelectMany(e => e.PendingTasks)
-            .OrderBy(t => t.CreatedAtUtc)
-            .ToList();
+        => _store.ListPendingTasksByPurchaseRequest(purchaseRequestId, ct);
 
-        return Task.FromResult<IReadOnlyList<PendingTask>>(tokens);
+    public async Task<WorkflowExecutionView?> GetExecutionView(string executionId, CancellationToken ct)
+    {
+        var exec = await _store.GetExecution(executionId, ct);
+        if (exec is null) return null;
+        var steps = await _store.ListSteps(executionId, ct);
+        var tasks = await _store.ListPendingTasksByExecution(executionId, ct);
+        return new WorkflowExecutionView(exec, steps, tasks);
     }
 
-    public Task<WorkflowStartResult> StartPurchaseRequestWorkflow(object input, CancellationToken ct)
+    public async Task<WorkflowStartResult> StartPurchaseRequestWorkflow(object input, CancellationToken ct)
     {
         EnsureLoaded();
 
@@ -74,6 +79,22 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
             throw new InvalidOperationException("Input must include PurchaseRequestId.");
 
         var executionId = $"exec_{Guid.NewGuid():N}";
+        var now = DateTimeOffset.UtcNow;
+
+        var execution = new WorkflowExecution(
+            ExecutionId: executionId,
+            PurchaseRequestId: purchaseRequestId,
+            DefinitionName: _definition!.Name,
+            DefinitionVersion: _definition.Version,
+            Status: WorkflowExecutionStatus.Running,
+            PhaseIndex: 0,
+            Data: data,
+            CreatedAtUtc: now,
+            UpdatedAtUtc: now);
+
+        await _store.CreateExecution(execution, ct);
+        await _store.AppendStep(NewStep(executionId, purchaseRequestId, "workflow", WorkflowStepType.PhaseEnter, null, input: data, output: null, WorkflowStepStatus.Ok), ct);
+
         var state = new ExecutionState(
             ExecutionId: executionId,
             PurchaseRequestId: purchaseRequestId,
@@ -82,27 +103,37 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
             Data: data,
             PendingTasks: new List<PendingTask>());
 
-        state = RunUntilWaitOrEnd(state);
-        _executions[executionId] = state;
+        state = await RunUntilWaitOrEnd(state, ct);
+        _executionCache[executionId] = state;
 
-        return Task.FromResult(new WorkflowStartResult(
-            ExecutionId: state.ExecutionId,
-            PurchaseRequestId: state.PurchaseRequestId,
-            Status: state.Status,
-            PendingTasks: state.PendingTasks.ToList()));
+        var view = await GetExecutionView(executionId, ct)
+                   ?? throw new InvalidOperationException("Execution view missing after start.");
+        return new WorkflowStartResult(view);
     }
 
-    public Task<WorkflowResumeResult> ResumeByTaskToken(string taskToken, object output, CancellationToken ct)
+    public async Task<WorkflowResumeResult> ResumeByTaskToken(string taskToken, object output, CancellationToken ct)
     {
-        if (!_taskTokenToExecutionId.TryGetValue(taskToken, out var executionId) || !_executions.TryGetValue(executionId, out var state))
-            throw new InvalidOperationException("Unknown task token.");
+        var found = await _store.FindExecutionByTaskToken(taskToken, ct);
+        if (found is null) throw new InvalidOperationException("Unknown task token.");
+
+        var executionId = found.Value.ExecutionId;
+        if (!_executionCache.TryGetValue(executionId, out var state))
+        {
+            // Best-effort rebuild: pull snapshot and continue.
+            var exec = await _store.GetExecution(executionId, ct)
+                       ?? throw new InvalidOperationException("Execution not found.");
+
+            var data = JsonSerializer.SerializeToNode(exec.Data, Json)?.AsObject() ?? new JsonObject();
+            state = new ExecutionState(exec.ExecutionId, exec.PurchaseRequestId, exec.Status, exec.PhaseIndex, data, new List<PendingTask>());
+        }
 
         // Mark token complete + attach callback output under $.Callbacks[taskToken]
         state.Data["Callbacks"] ??= new JsonObject();
         state.Data["Callbacks"]!.AsObject()[taskToken] = JsonSerializer.SerializeToNode(output, Json);
 
         state.PendingTasks.RemoveAll(t => t.TaskToken == taskToken);
-        _taskTokenToExecutionId.TryRemove(taskToken, out _);
+        await _store.CompletePendingTask(taskToken, output, ct);
+        await _store.AppendStep(NewStep(executionId, state.PurchaseRequestId, "callback", WorkflowStepType.TokenCompleted, taskToken, input: null, output: output, WorkflowStepStatus.Ok), ct);
 
         // If we were waiting and no pending tasks remain for the current phase, continue.
         if (state.Status == WorkflowExecutionStatus.Waiting && state.PendingTasks.Count == 0)
@@ -110,17 +141,15 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
             state = state with { Status = WorkflowExecutionStatus.Running };
         }
 
-        state = RunUntilWaitOrEnd(state);
-        _executions[executionId] = state;
+        state = await RunUntilWaitOrEnd(state, ct);
+        _executionCache[executionId] = state;
 
-        return Task.FromResult(new WorkflowResumeResult(
-            ExecutionId: state.ExecutionId,
-            PurchaseRequestId: state.PurchaseRequestId,
-            Status: state.Status,
-            PendingTasks: state.PendingTasks.ToList()));
+        var view = await GetExecutionView(executionId, ct)
+                   ?? throw new InvalidOperationException("Execution view missing after resume.");
+        return new WorkflowResumeResult(view);
     }
 
-    private ExecutionState RunUntilWaitOrEnd(ExecutionState state)
+    private async Task<ExecutionState> RunUntilWaitOrEnd(ExecutionState state, CancellationToken ct)
     {
         EnsureLoaded();
 
@@ -130,20 +159,34 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
             {
                 if (state.PhaseIndex >= _definition!.Phases.Count)
                 {
-                    return state with { Status = WorkflowExecutionStatus.Succeeded };
+                    state = state with { Status = WorkflowExecutionStatus.Succeeded };
+                    await PersistExecution(state, ct);
+                    return state;
                 }
 
                 var phase = _definition.Phases[state.PhaseIndex];
+                await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, phase.Type, WorkflowStepType.PhaseEnter, null, input: state.Data, output: null, WorkflowStepStatus.Ok), ct);
+
                 state = phase.Type switch
                 {
                     "routeBySpend" => ExecuteRouteBySpend(state),
-                    "cabinetDocsIfRequired" => ExecuteCabinetDocsIfRequired(state, phase),
-                    "waitForFormH" => ExecuteWaitForFormH(state, phase),
                     "procurementModuleI" => ExecuteProcurementModuleI(state, phase),
-                    "authorisationMap" => ExecuteAuthorisationMap(state, phase),
                     "succeed" => state with { Status = WorkflowExecutionStatus.Succeeded, PhaseIndex = state.PhaseIndex + 1 },
-                    _ => throw new InvalidOperationException($"Unsupported phase type: {phase.Type}")
+                    _ => state
                 };
+
+                // Async phases (need store I/O)
+                if (phase.Type == "cabinetDocsIfRequired")
+                    state = await ExecuteCabinetDocsIfRequired(state, phase, ct);
+                else if (phase.Type == "waitForFormH")
+                    state = await ExecuteWaitForFormH(state, phase, ct);
+                else if (phase.Type == "authorisationMap")
+                    state = await ExecuteAuthorisationMap(state, phase, ct);
+                else if (phase.Type is not ("routeBySpend" or "procurementModuleI" or "succeed"))
+                    throw new InvalidOperationException($"Unsupported phase type: {phase.Type}");
+
+                await PersistExecution(state, ct);
+                await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, phase.Type, WorkflowStepType.PhaseComplete, null, input: null, output: state.Data, state.Status == WorkflowExecutionStatus.Waiting ? WorkflowStepStatus.Waiting : WorkflowStepStatus.Ok), ct);
             }
 
             return state;
@@ -151,7 +194,10 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
         catch (Exception ex)
         {
             _log.LogError(ex, "Workflow execution failed. ExecutionId={ExecutionId} PurchaseRequestId={PurchaseRequestId}", state.ExecutionId, state.PurchaseRequestId);
-            return state with { Status = WorkflowExecutionStatus.Failed };
+            await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, "error", WorkflowStepType.Error, null, input: null, output: new { ex.Message, ex.GetType().Name }, WorkflowStepStatus.Failed), ct);
+            state = state with { Status = WorkflowExecutionStatus.Failed };
+            await PersistExecution(state, ct);
+            return state;
         }
     }
 
@@ -195,7 +241,7 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
         return state with { PhaseIndex = state.PhaseIndex + 1 };
     }
 
-    private ExecutionState ExecuteCabinetDocsIfRequired(ExecutionState state, HandwrittenWorkflowPhase phase)
+    private async Task<ExecutionState> ExecuteCabinetDocsIfRequired(ExecutionState state, HandwrittenWorkflowPhase phase, CancellationToken ct)
     {
         var routingLevel = state.Data["RoutingLevel"]?.GetValue<string>();
         if (!string.Equals(routingLevel, "LEVEL_5_CABINET_APPROVAL", StringComparison.OrdinalIgnoreCase))
@@ -213,14 +259,16 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
         {
             var token = NewToken(state, taskType: "DOCUMENT_UPLOAD", actorId: null, $"Upload required document: {doc}", extra: new JsonObject { ["DocumentType"] = doc });
             state.PendingTasks.Add(token);
-            _taskTokenToExecutionId[token.TaskToken] = state.ExecutionId;
+
+            await _store.UpsertPendingTask(state.ExecutionId, token, ct);
+            await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, "cabinetDocsIfRequired", WorkflowStepType.TokenIssued, token.TaskToken, input: new { doc }, output: token, WorkflowStepStatus.Waiting), ct);
         }
 
         state.Data["ApprovalStatus"] = "AWAITING_DOCUMENTS";
         return state with { Status = WorkflowExecutionStatus.Waiting };
     }
 
-    private ExecutionState ExecuteWaitForFormH(ExecutionState state, HandwrittenWorkflowPhase phase)
+    private async Task<ExecutionState> ExecuteWaitForFormH(ExecutionState state, HandwrittenWorkflowPhase phase, CancellationToken ct)
     {
         if (state.PendingTasks.Count > 0)
         {
@@ -229,7 +277,8 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
 
         var token = NewToken(state, taskType: "FORM_H", actorId: null, $"Submit {phase.Form}", extra: new JsonObject { ["FormType"] = phase.Form });
         state.PendingTasks.Add(token);
-        _taskTokenToExecutionId[token.TaskToken] = state.ExecutionId;
+        await _store.UpsertPendingTask(state.ExecutionId, token, ct);
+        await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, "waitForFormH", WorkflowStepType.TokenIssued, token.TaskToken, input: new { phase.Form }, output: token, WorkflowStepStatus.Waiting), ct);
 
         state.Data["ApprovalStatus"] = "AWAITING_BID_EVALUATION";
         return state with { Status = WorkflowExecutionStatus.Waiting };
@@ -248,7 +297,7 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
         return state with { PhaseIndex = state.PhaseIndex + 1 };
     }
 
-    private ExecutionState ExecuteAuthorisationMap(ExecutionState state, HandwrittenWorkflowPhase phase)
+    private async Task<ExecutionState> ExecuteAuthorisationMap(ExecutionState state, HandwrittenWorkflowPhase phase, CancellationToken ct)
     {
         if (state.PendingTasks.Count > 0)
         {
@@ -266,7 +315,8 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
                 extra: new JsonObject { ["Stage"] = phase.Stage, ["AuthorizerId"] = authId });
 
             state.PendingTasks.Add(token);
-            _taskTokenToExecutionId[token.TaskToken] = state.ExecutionId;
+            await _store.UpsertPendingTask(state.ExecutionId, token, ct);
+            await _store.AppendStep(NewStep(state.ExecutionId, state.PurchaseRequestId, "authorisationMap", WorkflowStepType.TokenIssued, token.TaskToken, input: new { phase.Stage, authId }, output: token, WorkflowStepStatus.Waiting), ct);
         }
 
         state.Data["ApprovalStatus"] = phase.Stage == "PART_1D" ? "AWAITING_AUTHORISATION_PART_1D" : "AWAITING_AUTHORISATION_PART_2A";
@@ -314,6 +364,49 @@ public sealed class HandwrittenWorkflowRuntime : IWorkflowRuntime
             Description: description,
             CreatedAtUtc: DateTimeOffset.UtcNow);
     }
+
+    private async Task PersistExecution(ExecutionState state, CancellationToken ct)
+    {
+        EnsureLoaded();
+        var now = DateTimeOffset.UtcNow;
+
+        var existing = await _store.GetExecution(state.ExecutionId, ct);
+        var createdAt = existing?.CreatedAtUtc ?? now;
+
+        var exec = new WorkflowExecution(
+            ExecutionId: state.ExecutionId,
+            PurchaseRequestId: state.PurchaseRequestId,
+            DefinitionName: _definition!.Name,
+            DefinitionVersion: _definition.Version,
+            Status: state.Status,
+            PhaseIndex: state.PhaseIndex,
+            Data: state.Data,
+            CreatedAtUtc: createdAt,
+            UpdatedAtUtc: now);
+
+        await _store.UpdateExecution(exec, ct);
+    }
+
+    private static WorkflowStep NewStep(
+        string executionId,
+        string purchaseRequestId,
+        string stepName,
+        WorkflowStepType stepType,
+        string? correlationId,
+        object? input,
+        object? output,
+        WorkflowStepStatus status)
+        => new(
+            StepId: $"step_{Guid.NewGuid():N}",
+            ExecutionId: executionId,
+            PurchaseRequestId: purchaseRequestId,
+            StepName: stepName,
+            StepType: stepType,
+            CorrelationId: correlationId,
+            Input: input,
+            Output: output,
+            Status: status,
+            OccurredAtUtc: DateTimeOffset.UtcNow);
 
     private void EnsureLoaded()
     {

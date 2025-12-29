@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 
 const apiBaseUrl = computed(() => import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000')
 
-type CreatePurchaseRequestResponse = { purchaseRequestId: string; workflowExecutionArn: string }
 type PendingTask = {
   taskToken: string
   purchaseRequestId: string
@@ -11,6 +10,33 @@ type PendingTask = {
   actorId?: string | null
   description: string
   createdAtUtc: string
+}
+type WorkflowStep = {
+  stepId: string
+  executionId: string
+  purchaseRequestId: string
+  stepName: string
+  stepType: string
+  correlationId?: string | null
+  input?: unknown
+  output?: unknown
+  status: string
+  occurredAtUtc: string
+}
+type ExecutionView = {
+  execution: {
+    executionId: string
+    purchaseRequestId: string
+    definitionName: string
+    definitionVersion: number
+    status: string
+    phaseIndex: number
+    data: unknown
+    createdAtUtc: string
+    updatedAtUtc: string
+  }
+  steps: WorkflowStep[]
+  pendingTasks: PendingTask[]
 }
 
 const prId = ref('')
@@ -20,10 +46,11 @@ const createdBy = ref('REQUESTOR')
 const part1dAuthorizers = ref('AUTH-001,AUTH-002,AUTH-003,AUTH-004')
 const part2aAuthorizers = ref('AUTH-101,AUTH-102,AUTH-103')
 
-const createResult = ref<CreatePurchaseRequestResponse | null>(null)
+const createResult = ref<{ purchaseRequestId: string; execution: ExecutionView } | null>(null)
 const createError = ref<string | null>(null)
 const pendingTasks = ref<PendingTask[]>([])
 const selectedTaskToken = ref<string>('')
+const steps = ref<WorkflowStep[]>([])
 
 async function createPurchaseRequest() {
   createError.value = null
@@ -54,7 +81,7 @@ async function createPurchaseRequest() {
     return
   }
 
-  createResult.value = (await res.json()) as CreatePurchaseRequestResponse
+  createResult.value = (await res.json()) as { purchaseRequestId: string; execution: ExecutionView }
   await refreshPendingTasks()
 }
 
@@ -70,6 +97,15 @@ async function refreshPendingTasks() {
   if (!res.ok) return
   pendingTasks.value = (await res.json()) as PendingTask[]
   if (!selectedTaskToken.value && pendingTasks.value.length > 0) selectedTaskToken.value = pendingTasks.value[0]!.taskToken
+
+  const execId = createResult.value?.execution?.execution?.executionId
+  if (execId) {
+    const execRes = await fetch(`${apiBaseUrl.value}/workflow/executions/${encodeURIComponent(execId)}`)
+    if (execRes.ok) {
+      const view = (await execRes.json()) as ExecutionView
+      steps.value = view.steps
+    }
+  }
 }
 
 async function submitCallback() {
@@ -159,6 +195,16 @@ async function submitCallback() {
               </option>
             </select>
           </label>
+        </div>
+      </div>
+
+      <div v-if="steps.length" class="pre ok">
+        <strong>Step history</strong>
+        <div style="margin-top: 10px; display: grid; gap: 6px">
+          <div v-for="s in steps" :key="s.stepId" style="border-top: 1px solid #e2e8f0; padding-top: 8px">
+            <div><code>{{ s.occurredAtUtc }}</code> — <strong>{{ s.stepName }}</strong> / {{ s.stepType }} / {{ s.status }}</div>
+            <div v-if="s.correlationId" class="muted">Correlation: <code>{{ s.correlationId }}</code></div>
+          </div>
         </div>
       </div>
     </section>
