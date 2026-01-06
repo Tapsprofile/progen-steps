@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "o3H26UX3NITtjSAZykPLM5KUq8HztW+lDQXJJlhQrnmigpKpYHCwV31i8GeAAxid2SelW4cxUPSk1dKBRL1TBQ==",
+  "success": true,
+  "projectFilePath": "/workspace/backend/src/Procurement.Orchestration.Application/Procurement.Orchestration.Application.csproj",
+  "expectedPackageFiles": [
+    "/home/ubuntu/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.1/microsoft.extensions.dependencyinjection.abstractions.10.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}

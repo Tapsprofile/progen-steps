@@ -1,0 +1,16 @@
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.csproj.AssemblyReference.cache
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.GeneratedMSBuildEditorConfig.editorconfig
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.AssemblyInfoInputs.cache
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.AssemblyInfo.cs
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.csproj.CoreCompileInputs.cache
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.sourcelink.json
+/workspace/backend/src/Procurement.Orchestration.Application/bin/Release/net8.0/Procurement.Orchestration.Application.deps.json
+/workspace/backend/src/Procurement.Orchestration.Application/bin/Release/net8.0/Procurement.Orchestration.Application.dll
+/workspace/backend/src/Procurement.Orchestration.Application/bin/Release/net8.0/Procurement.Orchestration.Application.pdb
+/workspace/backend/src/Procurement.Orchestration.Application/bin/Release/net8.0/Procurement.Orchestration.Domain.dll
+/workspace/backend/src/Procurement.Orchestration.Application/bin/Release/net8.0/Procurement.Orchestration.Domain.pdb
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.csproj.CopyComplete
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.dll
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/refint/Procurement.Orchestration.Application.dll
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/Procurement.Orchestration.Application.pdb
+/workspace/backend/src/Procurement.Orchestration.Application/obj/Release/net8.0/ref/Procurement.Orchestration.Application.dll

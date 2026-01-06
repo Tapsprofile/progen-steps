@@ -1,0 +1,6 @@
+@Procurement.Orchestration_HostAddress = http://localhost:5062
+
+GET {{Procurement.Orchestration_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

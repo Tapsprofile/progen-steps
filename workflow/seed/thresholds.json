@@ -1,0 +1,7 @@
+{
+  "SpendAuthLimit": 50000,
+  "TeamManagerLimit": 50000,
+  "FinanceAndLegal": 300000,
+  "HighValueLegal": 1200000,
+  "CabinetApproval": 2400000
+}
