@@ -1,0 +1,13 @@
+[k8s_control_plane]
+control-plane-1 ansible_host=10.0.0.10 ansible_user=ubuntu
+
+[k8s_workers]
+worker-1 ansible_host=10.0.0.11 ansible_user=ubuntu
+worker-2 ansible_host=10.0.0.12 ansible_user=ubuntu
+
+[ci_servers]
+jenkins-1 ansible_host=10.0.0.20 ansible_user=ubuntu
+
+[monitoring_servers]
+monitor-1 ansible_host=10.0.0.30 ansible_user=ubuntu
+
